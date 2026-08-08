@@ -34,30 +34,33 @@ public final class FixedPoolBlackListSearch implements BlackListSearch {
         long starAt = System.nanoTime();
         ExecutorService executor = Executors.newFixedThreadPool(poolSize);
 
-        List<Future<Boolean>> futures = new ArrayList<>();
-        for (BlackListProvider provider : providers) {
-            Future<Boolean> future = executor.submit(() -> provider.isBlacklisted(ipAddress));
-            futures.add(future);
-        }
-
-        List<Integer> matches = new ArrayList<>();
-        for (int i = 0; i < futures.size(); i++) {
-            try {
-                boolean result = futures.get(i).get();
-                if (result) {
-                    matches.add(providers.get(i).id());
-                }
-            } catch (InterruptedException ex) {
-                Thread.currentThread().interrupt();
-                throw new IllegalStateException("BlackListSearch was interrupted", ex);
-            } catch (ExecutionException ex) {
-                throw new IllegalStateException("BlackListSearch failed", ex);
+        try {
+            List<Future<Boolean>> futures = new ArrayList<>();
+            for (BlackListProvider provider : providers) {
+                Future<Boolean> future = executor.submit(() -> provider.isBlacklisted(ipAddress));
+                futures.add(future);
             }
-        }
 
-        Collections.sort(matches);
-        executor.shutdown();
-        Duration elapsed = Duration.ofNanos(System.nanoTime() - starAt);
-        return new SearchResult(ipAddress, matches, providers.size(), elapsed);
+            List<Integer> matches = new ArrayList<>();
+            for (int i = 0; i < futures.size(); i++) {
+                try {
+                    boolean result = futures.get(i).get();
+                    if (result) {
+                        matches.add(providers.get(i).id());
+                    }
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException("BlackListSearch was interrupted", ex);
+                } catch (ExecutionException ex) {
+                    throw new IllegalStateException("BlackListSearch failed", ex);
+                }
+            }
+
+            Collections.sort(matches);
+            Duration elapsed = Duration.ofNanos(System.nanoTime() - starAt);
+            return new SearchResult(ipAddress, matches, providers.size(), elapsed);
+        } finally {
+            executor.shutdown();
+        }
     }
 }
