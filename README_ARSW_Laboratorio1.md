@@ -460,8 +460,11 @@ Complete this table with actual measurements:
 | Simulated I/O | Fixed pool | 2 | 5504.811 | 5500.189 | 5509.875 | 1.99 | 7 | 100 |
 | Simulated I/O | Fixed pool | 4 | 2824.954 | 2821.876 | 2828.271 | 3.87 | 7 | 100 |
 | Simulated I/O | Fixed pool | 8 | 1470.691 | 1469.429 | 1471.838 | 7.44 | 7 | 100 |
-| No simulated I/O | Virtual threads | — | 1.116 | 0.599 | 1.585 | 0.02 | 7 | 100 |
-| Simulated I/O | Virtual threads | — | 205.896 | 199.829 | 214.377 | 56.82 | 7 | 100 |
+| No simulated I/O | Virtual threads | — | 0.827 | 0.596 | 0.975 | 0.02 | 7 | 100 |
+| Simulated I/O | Virtual threads | — | 207.933 | 199.955 | 212.661 | 52.60 | 7 | 100 |
+
+> All ten rows above were measured on the same machine (see `results/environment.md`), to satisfy the requirement of using a consistent environment and baseline per scenario.
+
 Also include the raw measurements in:
 
 ```text
@@ -517,7 +520,7 @@ Answer every question with evidence from the experiment.
 ### 15.3 Virtual threads
  10. In which scenario did virtual threads provide the clearest benefit?
 
-Virtual threads showed their greatest advantage in the scenario with simulated latency (blocking I/O). They averaged 205.9 ms compared to 11,699.3 ms for the sequential execution, achieving a speedup of 56.82x — significantly higher even than the fixed pool of 8 threads (speedup of 7.93x). In the scenario without I/O, however, virtual threads showed no advantage (speedup of 0.02), making them slower than the sequential execution.
+Virtual threads showed their greatest advantage in the scenario with simulated latency (blocking I/O). They averaged 207.933 ms compared to 10938.269 ms for the sequential execution, achieving a speedup of 52.60x — significantly higher even than the fixed pool of 8 threads (speedup of 7.44x). In the scenario without I/O, however, virtual threads showed no advantage (speedup of 0.02), making them slower than the sequential execution.
 
  11. Why are virtual threads especially relevant for blocking operations?
 
@@ -574,7 +577,7 @@ The conclusion must include:
 
 ### Team conclusion
 
-In this lab, we compared five different ways of querying 100 blacklist providers: sequential execution, fixed pools of 2, 4, and 8 threads, and virtual threads. The dominant workload in the real-world use case is blocking in nature (waiting for a response from an external provider), and the difference was significant: virtual threads took an average of 205.9 ms compared to 11,699.3 ms for the sequential approach, achieving a speedup of almost 57x and also outperforming the fixed thread pools. Therefore, we recommend virtual threads as the main strategy for this type of system, since they make better use of waiting time without requiring hundreds of heavyweight operating system threads.
+In this lab, we compared five different ways of querying 100 blacklist providers: sequential execution, fixed pools of 2, 4, and 8 threads, and virtual threads. The dominant workload in the real-world use case is blocking in nature (waiting for a response from an external provider), and the difference was significant: virtual threads took an average of 207.933 ms compared to 10938.269 ms for the sequential approach, achieving a speedup of almost 53x and also outperforming the fixed thread pools. Therefore, we recommend virtual threads as the main strategy for this type of system, since they make better use of waiting time without requiring hundreds of heavyweight operating system threads.
 
 However, when there was no waiting involved, none of the concurrent strategies outperformed the sequential approach; in fact, they were all slower because the cost of creating and coordinating tasks outweighed any potential benefit. This leaves us with the main trade-off: concurrency is only worthwhile when there is actual waiting time that can be utilized, not when the workload is purely local and fast.
 
@@ -647,7 +650,7 @@ Complete:
 | RAM | 32,492 MB (~32 GB) |
 | JDK vendor and version | Oracle JDK 26.0.1 (compiled with `--release 21`) |
 | Maven version | Apache Maven 3.9.16 |
-| Measurement date | 2026-08-07 |
+| Measurement date | 2026-08-07 to 2026-08-08 |
 
 ---
 
