@@ -576,13 +576,12 @@ The conclusion must include:
 
 ### Team conclusion
 
-> The dominant characteristic of this workload is that it is I/O-bound, not CPU-bound: each provider consultation spends most of its time waiting on a simulated blocking call, and almost none of it computing. This is exactly what our measurements show. Without simulated I/O, the fixed thread pool was never faster than the sequential baseline (speedup between 0.03 and 0.04 for pool sizes 2, 4 and 8); the actual work per provider is so small that the cost of creating tasks, scheduling threads and consolidating results outweighs anything gained from parallelism. With simulated I/O, the opposite happened: speedup grew close to linearly with pool size (1.99x with 2 threads, 3.87x with 4, 7.44x with 8), because most of the time in each task is spent waiting rather than using the CPU, so multiple waits can overlap almost for free.
->
-> Based on this evidence, for a system dominated by blocking external calls (network requests, databases, third-party APIs) our team recommends a concurrent strategy over a purely sequential one, since correctness was preserved in every configuration (identical matches, same consulted count, deterministic ordering) while latency dropped dramatically. This recommendation is valid specifically for I/O-bound work; for small, local, CPU-only workloads, the sequential implementation remains the simplest and most efficient choice, and adding threads only adds overhead without benefit.
->
-> A clear trade-off is complexity versus performance: the fixed-pool implementation requires careful handling of `Future`, exceptions and result ordering that the sequential version does not need at all. A limitation of this experiment is that it was run on a single machine with simulated, artificial latencies rather than a real network; real-world blocking calls can behave less predictably, so these exact speedup numbers should not be assumed to generalize directly to production systems.
+In this lab, we compared five different ways of querying 100 blacklist providers: sequential execution, fixed pools of 2, 4, and 8 threads, and virtual threads. The dominant workload in the real-world use case is blocking in nature (waiting for a response from an external provider), and the difference was significant: virtual threads took an average of 205.9 ms compared to 11,699.3 ms for the sequential approach, achieving a speedup of almost 57x and also outperforming the fixed thread pools. Therefore, we recommend virtual threads as the main strategy for this type of system, since they make better use of waiting time without requiring hundreds of heavyweight operating system threads.
 
----
+However, when there was no waiting involved, none of the concurrent strategies outperformed the sequential approach; in fact, they were all slower because the cost of creating and coordinating tasks outweighed any potential benefit. This leaves us with the main trade-off: concurrency is only worthwhile when there is actual waiting time that can be utilized, not when the workload is purely local and fast.
+
+As a limitation, all measurements were performed using a fixed and identical simulated latency for all providers, on a single machine, which does not represent the variability of a real production system.
+
 
 ## 17. Individual conclusions
 
@@ -596,15 +595,17 @@ Each student must add an individual conclusion of 80 to 120 words.
 
 ### Student 2
 
-**Name:** Pending
+**Name:** Maria Juliana Rodriguez Caicedo
 
-> Replace this text with the individual conclusion.
+> For me, the clearest lesson from this lab was that concurrency is not free: it helps a lot when there is something external to wait for, but if the work is fast and local, it is better not to overcomplicate it. Seeing the huge difference between the sequential approach and virtual threads in the scenario with waiting, while no concurrent strategy provided an advantage in the local scenario, helped me understand that the decision depends on the type of workload, rather than always choosing "the newest" or whatever sounds faster.
 
 ### Student 3
 
-**Name:** Pending
+**Name:** Kevyn Daniel Forero Gonzalez
 
-> Replace this text with the individual conclusion.
+> This lab helped me understand that concurrency is not a universal solution, but something that needs to be evaluated based on the type of task. Seeing how the execution times changed from sequential execution to fixed thread pools and then to virtual threads made it clear that the real performance gain appears when there is something external to wait for, not when the work is already fast on its own. I also found it important to verify first that all strategies produced the same results before comparing their performance, because there is no point in having something faster if it is not correct.
+
+
 
 ---
 
@@ -654,11 +655,11 @@ Complete:
 
 ## 20. Team members and contribution evidence
 
-| Student | GitHub username | Main contribution | Relevant commits |
-|---|---|---|---|
-| Hever Barrera Botero | heverthisday | Implemented `FixedPoolBlackListSearch`, its equivalence/ordering/exception tests, extended `BenchmarkRunner` (strategy selection, warmups, CSV output), ran and documented the `SEQUENTIAL`/`FIXED` benchmark, answered the correctness and fixed-thread-pool analysis questions | `Implement fixed thread pool search`, `Remove target/ from version control`, `Add equivalence and ordering tests for fixed pool search`, `Extend benchmark runner with strategy selection, warmups and CSV output`, `Document baseline, environment and benchmark results for sequential and fixed pool`, `Answer correctness and fixed thread pool analysis questions` |
-| Maria Juliana Rodriguez Caicedo | JuliRodC | Pending | Pending |
-| Kevyn Daniel Forero Gonzalez | Pending (awaiting GitHub username confirmation) | Pending | Pending |
+| Student                         | GitHub username | Main contribution | Relevant commits                                                                                                                                                                                                                                                                                                                                                        |
+|---------------------------------|-------------|---|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Hever Barrera Botero            | heverthisday | Implemented `FixedPoolBlackListSearch`, its equivalence/ordering/exception tests, extended `BenchmarkRunner` (strategy selection, warmups, CSV output), ran and documented the `SEQUENTIAL`/`FIXED` benchmark, answered the correctness and fixed-thread-pool analysis questions | `Implement fixed thread pool search`, `Remove target/ from version control`, `Add equivalence and ordering tests for fixed pool search`, `Extend benchmark runner with strategy selection, warmups and CSV output`, `Document baseline, environment and benchmark results for sequential and fixed pool`, `Answer correctness and fixed thread pool analysis questions` |
+| Maria Juliana Rodriguez Caicedo | JuliRodC | Implemented VirtualThreadBlackListSearch and its equivalence tests | Implementacion VirtualThreadBlackListSearch, Se agregaron tests de VirtualThreadBlackListSearch                                                                                                                                                                                                                                                                         |
+| Kevyn Daniel Forero Gonzalez    | kevyn1005 | Supported virtual thread testing, generated benchmark results, documented the environment, and completed the analysis and results table sections in the README | Se genera resultados del benchmark, Se agrego enviroment.md, Se agrega modificaciones del README la tabla, Se culmino la seccion 15, Revision y finalizacion del documenti                                                                                                                                                                                              |
 
 Each student must have at least two meaningful commits.
 
@@ -784,7 +785,7 @@ Complete the following table:
 | Tool | Purpose | Main prompts or activities | Validation performed | Changes made by the team |
 |---|---|---|---|---|
 | Claude (Anthropic, via Cowork) | Learning support and guided pair-programming to understand Java concurrency concepts (`ExecutorService`, `Future`, `Callable`, exception handling for `InterruptedException`/`ExecutionException`) and to implement the `FixedPoolBlackListSearch` class, its automated tests, and the extended `BenchmarkRunner`. | Step-by-step explanations of `ExecutorService`/`Future`, review of hand-written code for `FixedPoolBlackListSearch` and `FixedPoolBlackListSearchTest`, help extending `BenchmarkRunner` (argument parsing, warmups, CSV output), guidance on git workflow (branches, commits, `.gitignore` cleanup), and drafting answers to analysis questions 15.1 and 15.2 based on the team's own measured data. | Every piece of code was compiled (`mvn clean compile` / `mvn test`) and manually checked against the sequential baseline (via `jshell` and JUnit tests) before being committed. All benchmark numbers in `results/results.csv` and the results table come from real `mvn exec:java` executions on the team's machine, not from AI-generated estimates. | The student wrote the final code for `FixedPoolBlackListSearch` and its tests by hand, line by line, following the AI's explanations rather than pasting a finished solution; removed an AI-suggested test case that was not required by the lab (pool size 16); fixed compilation and brace-matching errors independently once flagged. Analysis answers were reviewed against the team's own `results.csv` data before being accepted. |
-
+| ChatGPT (OpenAI) | Translation support to convert parts of the README and analysis answers between Spanish and English. | Translating instructions and drafted text passages. | Translated text was reviewed by the team to confirm it preserved the original meaning. | N/A |
 Requirements:
 
 - Do not submit code that the team cannot explain.
