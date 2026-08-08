@@ -5,9 +5,9 @@
 **Course:** Arquitecturas de Software — ARSW  
 **Institution:** Universidad Escuela Colombiana de Ingeniería Julio Garavito  
 **Professor:** Javier Iván Toquica  
-**Work mode:** Teams of three students  
+**Work mode:** Teams of three students 
 **Technology:** Java 21 · Maven · JUnit 5  
-**Submission deadline:** Defined in the institutional platform
+**Submission deadline:** Defined in the institutional platform (Teams)
 
 ---
 
@@ -174,6 +174,13 @@ Before modifying the code:
 7. Record the baseline result in this README.
 
 Every team member must contribute meaningful commits and must understand the complete solution.
+
+### Baseline result (sequential, single run)
+
+| simulateIo | IP | Matches | Consulted | Elapsed |
+|---|---|---|---:|---:|
+| `true` | 202.24.34.55 | `[10, 23, 36, 49, 62, 75, 88]` | 100 | ~11,012.979 ms |
+| `false` | 202.24.34.55 | `[10, 23, 36, 49, 62, 75, 88]` | 100 | ~0.077 ms |
 
 ---
 
@@ -445,15 +452,15 @@ Complete this table with actual measurements:
 
 | Scenario | Strategy | Pool size | Average ms | Minimum ms | Maximum ms | Speedup | Matches | Consulted |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| No simulated I/O | Sequential | — | Pending | Pending | Pending | 1.00 | Pending | Pending |
-| No simulated I/O | Fixed pool | 2 | Pending | Pending | Pending | Pending | Pending | Pending |
-| No simulated I/O | Fixed pool | 4 | Pending | Pending | Pending | Pending | Pending | Pending |
-| No simulated I/O | Fixed pool | 8 | Pending | Pending | Pending | Pending | Pending | Pending |
+| No simulated I/O | Sequential | — | 0.020 | 0.011 | 0.037 | 1.00 | 7 | 100 |
+| No simulated I/O | Fixed pool | 2 | 0.495 | 0.320 | 0.699 | 0.04 | 7 | 100 |
+| No simulated I/O | Fixed pool | 4 | 0.493 | 0.370 | 0.770 | 0.04 | 7 | 100 |
+| No simulated I/O | Fixed pool | 8 | 0.719 | 0.582 | 0.960 | 0.03 | 7 | 100 |
 | No simulated I/O | Virtual threads | — | Pending | Pending | Pending | Pending | Pending | Pending |
-| Simulated I/O | Sequential | — | Pending | Pending | Pending | 1.00 | Pending | Pending |
-| Simulated I/O | Fixed pool | 2 | Pending | Pending | Pending | Pending | Pending | Pending |
-| Simulated I/O | Fixed pool | 4 | Pending | Pending | Pending | Pending | Pending | Pending |
-| Simulated I/O | Fixed pool | 8 | Pending | Pending | Pending | Pending | Pending | Pending |
+| Simulated I/O | Sequential | — | 10938.269 | 10936.811 | 10940.099 | 1.00 | 7 | 100 |
+| Simulated I/O | Fixed pool | 2 | 5504.811 | 5500.189 | 5509.875 | 1.99 | 7 | 100 |
+| Simulated I/O | Fixed pool | 4 | 2824.954 | 2821.876 | 2828.271 | 3.87 | 7 | 100 |
+| Simulated I/O | Fixed pool | 8 | 1470.691 | 1469.429 | 1471.838 | 7.44 | 7 | 100 |
 | Simulated I/O | Virtual threads | — | Pending | Pending | Pending | Pending | Pending | Pending |
 
 Also include the raw measurements in:
@@ -485,6 +492,13 @@ Answer every question with evidence from the experiment.
 3. What mechanism or design prevented lost or duplicated matches?
 4. Why should performance not be compared before proving functional equivalence?
 
+**Answers:**
+
+1. Equivalence was checked in three ways. First, manually with `jshell`, running `FixedPoolBlackListSearch` with pool sizes 2, 4 and 8 against the same 100 providers and IP used by `SequentialBlackListSearch`, and comparing the matching provider ids by eye (`[10, 23, 36, 49, 62, 75, 88]` in every case). Second, with automated JUnit tests (`FixedPoolBlackListSearchTest`) that build both a sequential and a fixed-pool search over the same provider list and assert that `matchingProviderIds()` is exactly equal. Third, `BenchmarkRunner` itself computes one sequential "reference" result before running any measured iteration, and every measured run is compared against that reference (same matches, same consulted count); if they ever differ, the benchmark stops with an error instead of silently reporting a wrong number.
+2. Each provider is consulted by a separate task running on its own thread from the pool. The order in which those threads actually finish depends on how the JVM and the operating system schedule them, and on how long each provider's simulated latency is (recall that `ProviderFactory` assigns a different latency, between roughly 20 and 200 ms, to each provider). A task submitted early can still finish later than one submitted after it, simply because it happened to get a longer simulated wait or less CPU time. So the completion order has no guaranteed relationship with the provider id order.
+3. Two things together prevent lost or duplicated matches. First, each task is a `Callable<Boolean>` that only returns its own result through a `Future`; no task ever writes directly into a shared list. Second, the results are only read and consolidated afterwards, sequentially, in the main thread, using the same index to line up each `Future` with its corresponding provider in the original list. Since only one thread (the main thread) ever appends to the `matches` list, and it does so once per provider, there is no possibility of two threads adding the same id twice or overwriting each other. The final `Collections.sort(matches)` then guarantees a fixed, ascending order regardless of the order in which the tasks actually completed.
+4. Measuring how fast an implementation runs is meaningless if that implementation is not answering the same question as the baseline. A strategy that skips providers, loses matches, or duplicates them could easily look "faster" while being wrong. Comparing speed before correctness would risk reporting an appealing number for a broken implementation. That is why the lab's own rule states that a benchmark is invalid when the compared strategies do not produce equivalent results — speed only means something once both sides are known to compute the same thing.
+
 ### 15.2 Fixed thread pool
 
 5. What changed when the pool increased from 2 to 4 threads?
@@ -492,6 +506,14 @@ Answer every question with evidence from the experiment.
 7. Was the improvement proportional to the number of threads? Explain.
 8. What costs are introduced by task creation, scheduling, context switching, and result consolidation?
 9. What would happen if the pool size were much larger than the available platform threads?
+
+**Answers:**
+
+5. With simulated I/O, going from 2 to 4 threads roughly halved the average time (5504.811 ms → 2824.954 ms). Without simulated I/O, the average stayed about the same (0.495 ms → 0.493 ms) — there was no meaningful waiting to overlap, so adding more workers did not help.
+6. With simulated I/O, going from 4 to 8 threads again roughly halved the average time (2824.954 ms → 1470.691 ms). Without simulated I/O, the average actually got worse (0.493 ms → 0.719 ms), because more threads mean more coordination overhead for a workload that is already essentially instantaneous.
+7. In the I/O scenario, yes, very close to proportional: the speedup went from 1.99 (pool 2) to 3.87 (pool 4) to 7.44 (pool 8), near the ideal values of 2x, 4x and 8x. This happens because the work is dominated by waiting, not by CPU usage, so each extra thread can overlap another wait almost for free. In the no-I/O scenario the opposite happened: speedup stayed below 1.00 for every pool size (0.03–0.04), meaning the fixed pool was always slower than the sequential version, because there was no waiting time to hide and the overhead of managing threads outweighed the tiny amount of real work.
+8. Creating a task means allocating an object and handing it to the executor's internal queue. Scheduling means the JVM and the operating system have to decide which thread runs on which CPU core and when. Context switching happens when there are more runnable threads than available cores, and it costs time to save and restore each thread's state. Result consolidation (looping over the `Future` list, calling `.get()` on each one, sorting the matches) runs sequentially on the main thread after every task has finished, adding a small serial tail to every search. When the simulated latency per provider is large, all of this overhead is negligible next to the waiting time saved. When the latency is close to zero, this overhead becomes the dominant cost, which is exactly what the no-I/O measurements show.
+9. If the pool size were much larger than the number of platform threads the machine can actually run at once (this machine has 16 logical processors), the extra threads could not run truly in parallel — the operating system would have to time-slice them, increasing context-switch overhead without adding real parallel capacity. For I/O-bound work like this lab, an oversized pool can still help up to a point, since most threads spend their time sleeping rather than competing for CPU, but the benefit saturates quickly and each extra thread still costs memory (thread stack) and scheduling overhead. For CPU-bound work, an oversized pool brings no benefit at all and only adds overhead, since the CPU cores are already the bottleneck.
 
 ### 15.3 Virtual threads
 
@@ -501,6 +523,8 @@ Answer every question with evidence from the experiment.
 13. What trade-offs remain even when virtual threads are lightweight?
 
 ### 15.4 Architectural decision
+
+> Pending: best answered once the `VIRTUAL` results are available, since a fair recommendation should compare all three strategies, not just sequential and fixed pool.
 
 14. Which strategy would the team recommend for a system dominated by blocking external calls?
 15. Which strategy would the team recommend for a small local workload?
@@ -589,13 +613,13 @@ Complete:
 
 | Item | Value |
 |---|---|
-| Operating system | Pending |
-| CPU model | Pending |
-| Logical processors | Pending |
-| RAM | Pending |
-| JDK vendor and version | Pending |
-| Maven version | Pending |
-| Measurement date | Pending |
+| Operating system | Microsoft Windows 11 Pro (Build 10.0.26200) |
+| CPU model | 11th Gen Intel(R) Core(TM) i7-11800H @ 2.30GHz |
+| Logical processors | 16 |
+| RAM | 32,492 MB (~32 GB) |
+| JDK vendor and version | Oracle JDK 26.0.1 (compiled with `--release 21`) |
+| Maven version | Apache Maven 3.9.16 |
+| Measurement date | 2026-08-07 |
 
 ---
 
