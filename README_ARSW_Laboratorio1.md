@@ -551,7 +551,11 @@ The conclusion must include:
 
 ### Team conclusion
 
-> Replace this text with the team conclusion.
+> The dominant characteristic of this workload is that it is I/O-bound, not CPU-bound: each provider consultation spends most of its time waiting on a simulated blocking call, and almost none of it computing. This is exactly what our measurements show. Without simulated I/O, the fixed thread pool was never faster than the sequential baseline (speedup between 0.03 and 0.04 for pool sizes 2, 4 and 8); the actual work per provider is so small that the cost of creating tasks, scheduling threads and consolidating results outweighs anything gained from parallelism. With simulated I/O, the opposite happened: speedup grew close to linearly with pool size (1.99x with 2 threads, 3.87x with 4, 7.44x with 8), because most of the time in each task is spent waiting rather than using the CPU, so multiple waits can overlap almost for free.
+>
+> Based on this evidence, for a system dominated by blocking external calls (network requests, databases, third-party APIs) our team recommends a concurrent strategy over a purely sequential one, since correctness was preserved in every configuration (identical matches, same consulted count, deterministic ordering) while latency dropped dramatically. This recommendation is valid specifically for I/O-bound work; for small, local, CPU-only workloads, the sequential implementation remains the simplest and most efficient choice, and adding threads only adds overhead without benefit.
+>
+> A clear trade-off is complexity versus performance: the fixed-pool implementation requires careful handling of `Future`, exceptions and result ordering that the sequential version does not need at all. A limitation of this experiment is that it was run on a single machine with simulated, artificial latencies rather than a real network; real-world blocking calls can behave less predictably, so these exact speedup numbers should not be assumed to generalize directly to production systems.
 
 ---
 
@@ -561,9 +565,9 @@ Each student must add an individual conclusion of 80 to 120 words.
 
 ### Student 1
 
-**Name:** Pending
+**Name:** Hever Barrera Botero
 
-> Replace this text with the individual conclusion.
+> Before this lab I had barely worked with concurrency in Java, so I started from the basics: what a thread is, what `ExecutorService` and `Future` do, and why you cannot just write to a shared list from multiple threads at once. Implementing `FixedPoolBlackListSearch` made those ideas concrete: submitting one task per provider, collecting results by index instead of sharing mutable state, and handling `InterruptedException` correctly. The most useful part was seeing the numbers myself, running the same search with 2, 4 and 8 threads and comparing it against the sequential baseline, with and without simulated I/O. That is what made the difference between coordination overhead and real parallel gain click for me, instead of just being a theoretical idea. I also learned that correctness has to be verified before comparing speed, and that git hygiene (branches, meaningful commits, ignoring `target/`) matters for teamwork.
 
 ### Student 2
 
@@ -627,9 +631,9 @@ Complete:
 
 | Student | GitHub username | Main contribution | Relevant commits |
 |---|---|---|---|
-| Pending | Pending | Pending | Pending |
-| Pending | Pending | Pending | Pending |
-| Pending | Pending | Pending | Pending |
+| Hever Barrera Botero | heverthisday | Implemented `FixedPoolBlackListSearch`, its equivalence/ordering/exception tests, extended `BenchmarkRunner` (strategy selection, warmups, CSV output), ran and documented the `SEQUENTIAL`/`FIXED` benchmark, answered the correctness and fixed-thread-pool analysis questions | `Implement fixed thread pool search`, `Remove target/ from version control`, `Add equivalence and ordering tests for fixed pool search`, `Extend benchmark runner with strategy selection, warmups and CSV output`, `Document baseline, environment and benchmark results for sequential and fixed pool`, `Answer correctness and fixed thread pool analysis questions` |
+| Maria Juliana Rodriguez Caicedo | JuliRodC | Pending | Pending |
+| Kevyn Daniel Forero Gonzalez | Pending (awaiting GitHub username confirmation) | Pending | Pending |
 
 Each student must have at least two meaningful commits.
 
@@ -754,7 +758,7 @@ Complete the following table:
 
 | Tool | Purpose | Main prompts or activities | Validation performed | Changes made by the team |
 |---|---|---|---|---|
-| Pending | Pending | Pending | Pending | Pending |
+| Claude (Anthropic, via Cowork) | Learning support and guided pair-programming to understand Java concurrency concepts (`ExecutorService`, `Future`, `Callable`, exception handling for `InterruptedException`/`ExecutionException`) and to implement the `FixedPoolBlackListSearch` class, its automated tests, and the extended `BenchmarkRunner`. | Step-by-step explanations of `ExecutorService`/`Future`, review of hand-written code for `FixedPoolBlackListSearch` and `FixedPoolBlackListSearchTest`, help extending `BenchmarkRunner` (argument parsing, warmups, CSV output), guidance on git workflow (branches, commits, `.gitignore` cleanup), and drafting answers to analysis questions 15.1 and 15.2 based on the team's own measured data. | Every piece of code was compiled (`mvn clean compile` / `mvn test`) and manually checked against the sequential baseline (via `jshell` and JUnit tests) before being committed. All benchmark numbers in `results/results.csv` and the results table come from real `mvn exec:java` executions on the team's machine, not from AI-generated estimates. | The student wrote the final code for `FixedPoolBlackListSearch` and its tests by hand, line by line, following the AI's explanations rather than pasting a finished solution; removed an AI-suggested test case that was not required by the lab (pool size 16); fixed compilation and brace-matching errors independently once flagged. Analysis answers were reviewed against the team's own `results.csv` data before being accepted. |
 
 Requirements:
 
