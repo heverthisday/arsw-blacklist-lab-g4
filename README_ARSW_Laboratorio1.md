@@ -517,21 +517,45 @@ Answer every question with evidence from the experiment.
 9. If the pool size were much larger than the number of platform threads the machine can actually run at once (this machine has 16 logical processors), the extra threads could not run truly in parallel — the operating system would have to time-slice them, increasing context-switch overhead without adding real parallel capacity. For I/O-bound work like this lab, an oversized pool can still help up to a point, since most threads spend their time sleeping rather than competing for CPU, but the benefit saturates quickly and each extra thread still costs memory (thread stack) and scheduling overhead. For CPU-bound work, an oversized pool brings no benefit at all and only adds overhead, since the CPU cores are already the bottleneck.
 
 ### 15.3 Virtual threads
+ 10. In which scenario did virtual threads provide the clearest benefit?
 
-10. In which scenario did virtual threads provide the clearest benefit?
-11. Why are virtual threads especially relevant for blocking operations?
+Virtual threads showed their greatest advantage in the scenario with simulated latency (blocking I/O). They averaged 205.9 ms compared to 11,699.3 ms for the sequential execution, achieving a speedup of 56.82x — significantly higher even than the fixed pool of 8 threads (speedup of 7.93x). In the scenario without I/O, however, virtual threads showed no advantage (speedup of 0.02), making them slower than the sequential execution.
+
+ 11. Why are virtual threads especially relevant for blocking operations?
+
+When a task performs a blocking operation (such as waiting for a network response), a platform thread remains occupied without doing useful work during the entire wait. Virtual threads are much more lightweight: the JVM can create thousands of them without exhausting operating system resources, and when a virtual thread blocks, the JVM can free the underlying platform thread so that another virtual thread can use it in the meantime. Therefore, with 100 tasks waiting for simulated latency at the same time, virtual threads can handle them practically in parallel without the cost of creating 100 real operating system threads.
+
 12. Why do virtual threads not make local CPU work automatically faster?
+
+Virtual threads solve the problem of blocking waits, not the problem of computational capacity. The number of physical CPU cores (8 in this case) remains the same, so creating more threads — virtual or otherwise — does not make the processor execute instructions faster. In the scenario without I/O, where the work is purely local and fast, there is no waiting time to take advantage of. Therefore, virtual threads provide no benefit; in fact, the overhead of creating 100 tasks and coordinating their results ends up being more expensive than simply performing the work on a single thread (which is why the speedup was 0.02, making it slower than the sequential execution).
+
 13. What trade-offs remain even when virtual threads are lightweight?
+
+Although each virtual thread is cheap to create, there is still a coordination cost: creating 100 tasks, submitting them to the executor, and waiting for each `Future.get()` introduces overhead. This overhead is negligible compared to a long I/O wait, but noticeable when the local operation is nearly instantaneous. Additionally, virtual threads do not eliminate the need to properly handle errors, interruptions, and executor shutdown — the same concurrency concerns, such as avoiding mutable shared state and race conditions, still apply just as they do with platform threads.
+
 
 ### 15.4 Architectural decision
 
-> Pending: best answered once the `VIRTUAL` results are available, since a fair recommendation should compare all three strategies, not just sequential and fixed pool.
 
 14. Which strategy would the team recommend for a system dominated by blocking external calls?
+
+Virtual threads. With simulated latency, they were by far the fastest option (about 57 times faster than the sequential approach and faster than any fixed thread pool). For real systems that make many calls to external services, such as querying multiple APIs or databases, this makes sense because many requests can be handled concurrently without creating hundreds of heavyweight platform threads.
+
 15. Which strategy would the team recommend for a small local workload?
+
+The sequential approach. Without latency, it was the fastest option of all (0.023 ms on average), while all concurrent versions were slower. If the work is fast and there is nothing to wait for, using concurrency only adds complexity and overhead without providing any benefit.
+
 16. Under what conditions would a fixed pool still be preferable?
+
+When it is necessary to control how many tasks run concurrently. For example, if the external system being accessed can only handle a limited number of connections at a time, a fixed thread pool allows that limit to be explicitly enforced. With virtual threads, there is no such natural limit because a task can be created for each request without a fixed concurrency bound.
+
 17. What evidence from the measurements supports the recommendation?
+
+There are two main pieces of evidence. First, virtual threads performed significantly better in the scenario involving waiting (simulated latency), showing that they are effective when there is blocking time that can be handled concurrently. Second, in the scenario without waiting, none of the concurrent strategies outperformed the sequential approach, confirming that concurrency is most valuable when there is work that can be performed while other tasks are waiting.
+
 18. What limitations prevent generalizing the conclusion to every production system?
+
+The experiment uses the same simulated latency for all queries, whereas real-world waiting times can vary and requests can fail. It also did not test a large number of users accessing the system simultaneously, nor did it generally measure the memory or CPU consumption of each strategy — only the execution time of a single search. Finally, everything was run on a single computer, so the results could vary on different hardware or in a different production environment.
 
 Answers such as “virtual threads are better” or “more threads are faster” are insufficient without conditions and evidence.
 
