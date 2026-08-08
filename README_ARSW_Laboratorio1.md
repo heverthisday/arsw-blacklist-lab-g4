@@ -462,7 +462,8 @@ Complete this table with actual measurements:
 | Simulated I/O | Fixed pool | 4 | 2824.954 | 2821.876 | 2828.271 | 3.87 | 7 | 100 |
 | Simulated I/O | Fixed pool | 8 | 1470.691 | 1469.429 | 1471.838 | 7.44 | 7 | 100 |
 | Simulated I/O | Virtual threads | — | Pending | Pending | Pending | Pending | Pending | Pending |
-
+| No simulated I/O | Virtual threads | — | 1.116 | 0.599 | 1.585 | 0.02 | 7 | 100 |
+| Simulated I/O | Virtual threads | — | 205.896 | 199.829 | 214.377 | 56.82 | 7 | 100 |
 Also include the raw measurements in:
 
 ```text
