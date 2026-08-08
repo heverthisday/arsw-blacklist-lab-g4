@@ -451,17 +451,15 @@ Do not compare a strategy executed with simulated I/O against a baseline execute
 Complete this table with actual measurements:
 
 | Scenario | Strategy | Pool size | Average ms | Minimum ms | Maximum ms | Speedup | Matches | Consulted |
-|---|---|---:|---:|---:|---:|---:|---:|---:|
+|--|---|---:|---:|---:|---:|---:|---:|---:|
 | No simulated I/O | Sequential | — | 0.020 | 0.011 | 0.037 | 1.00 | 7 | 100 |
 | No simulated I/O | Fixed pool | 2 | 0.495 | 0.320 | 0.699 | 0.04 | 7 | 100 |
 | No simulated I/O | Fixed pool | 4 | 0.493 | 0.370 | 0.770 | 0.04 | 7 | 100 |
 | No simulated I/O | Fixed pool | 8 | 0.719 | 0.582 | 0.960 | 0.03 | 7 | 100 |
-| No simulated I/O | Virtual threads | — | Pending | Pending | Pending | Pending | Pending | Pending |
 | Simulated I/O | Sequential | — | 10938.269 | 10936.811 | 10940.099 | 1.00 | 7 | 100 |
 | Simulated I/O | Fixed pool | 2 | 5504.811 | 5500.189 | 5509.875 | 1.99 | 7 | 100 |
 | Simulated I/O | Fixed pool | 4 | 2824.954 | 2821.876 | 2828.271 | 3.87 | 7 | 100 |
 | Simulated I/O | Fixed pool | 8 | 1470.691 | 1469.429 | 1471.838 | 7.44 | 7 | 100 |
-| Simulated I/O | Virtual threads | — | Pending | Pending | Pending | Pending | Pending | Pending |
 | No simulated I/O | Virtual threads | — | 1.116 | 0.599 | 1.585 | 0.02 | 7 | 100 |
 | Simulated I/O | Virtual threads | — | 205.896 | 199.829 | 214.377 | 56.82 | 7 | 100 |
 Also include the raw measurements in:
